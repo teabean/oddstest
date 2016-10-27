@@ -52,15 +52,13 @@ const poll = () => {
       method: 'GET'
     }, (error, response, body) => {
       if (error) {
-        console.log('ERROR', error)
+        console.log(error)
       } else if (response.statusCode === 200) {
-        console.log('OK')
         const json = JSON.parse(body)
         lastTimeStamp = json['@attributes'].timestamp
         const matches = json.match || []
 
         matches.map((match) => {
-          console.log(match.group)
           const descriptionParam = `${match.hteam} vs ${match.ateam} - ${match.group}`
           const {bookmaker} = match
           const {offer} = bookmaker
@@ -82,7 +80,7 @@ const poll = () => {
               offerDescription: offer['@attributes'].otname
             })
           .then((result) => {
-            console.log(result.records)
+            console.log(`Match created ${descriptionParam}`)
             // Now add odds, they are in order newest -> oldest
             const {odds} = offer
             const offerId = offer['@attributes'].id
@@ -102,15 +100,15 @@ const poll = () => {
               // An odds object always has o1, o2 and o3 regardless of the odds type
               // Sometimes it will have an o4 if the odds type is AH
               queryString += ` MERGE (${'o1' + i}:Price {id: \'o1.${offerId}.${timestamp}\', value: ${o.o1}})\n`
-              queryString += ` MERGE (${'o1' + i})-[:PRICE]->(${'n' + i})\n`
+              queryString += ` MERGE (${'o1' + i})-[:O1]->(${'n' + i})\n`
               queryString += ` MERGE (${'o2' + i}:Price {id: \'o2.${offerId}.${timestamp}\', value: ${o.o2}})\n`
-              queryString += ` MERGE (${'o2' + i})-[:PRICE]->(${'n' + i})\n`
+              queryString += ` MERGE (${'o2' + i})-[:O2]->(${'n' + i})\n`
               queryString += ` MERGE (${'o3' + i}:Price {id: \'03.${offerId}.${timestamp}\', value: ${o.o3}})\n`
-              queryString += ` MERGE (${'o3' + i})-[:PRICE]->(${'n' + i})\n`
+              queryString += ` MERGE (${'o3' + i})-[:O3]->(${'n' + i})\n`
 
               if (o.o4) {
                 queryString += ` MERGE (${'o4' + i}:Price {id: \'o4.${offerId}.${timestamp}\', value: ${o.o4}})\n`
-                queryString += ` MERGE (${'o4' + i})-[:PRICE]->(${'n' + i})\n`
+                queryString += ` MERGE (${'o4' + i})-[:O4]->(${'n' + i})\n`
               }
 
               // Now do Odds relationships to older odds
