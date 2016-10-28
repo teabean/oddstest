@@ -4,9 +4,9 @@ const neo4j = require('neo4j-driver').v1
 
 dotenv.load()
 
-// Note my local neo4j has an uncrackable password :|
-// const db = new neo4j.GraphDatabase('http://neo4j:password@localhost:7474')
-const driver = neo4j.driver('bolt://localhost', neo4j.auth.basic('neo4j', 'password'))
+const neo4juser = process.env.neo4juser
+const neo4jpassword = process.env.neo4jpassword
+const driver = neo4j.driver('bolt://localhost', neo4j.auth.basic(neo4juser, neo4jpassword))
 const session = driver.session()
 
 const pollInterval = 1000
