@@ -39,7 +39,7 @@ session.run('MATCH (n) DETACH DELETE n')
 const poll = () => {
   setTimeout(() => {
     // let url = `http://xml2.txodds.com/feed/odds/xml.php?ident=${ident}&passwd=${password}&mgid=1017&bid=17&ot=0&json=1`
-    let url = `http://xml2.txodds.com/feed/odds/xml.php?ident=${ident}&passwd=${password}&mgstr=FBSWE&bid=17&ot=0&all_odds=1&json=1`
+    let url = `http://xml2.txodds.com/feed/odds/xml.php?ident=${ident}&passwd=${password}&mgstr=FBENG&bid=17&ot=0&all_odds=1&json=1`
 
     if (lastTimeStamp > 0) {
       url += `&last=${lastTimeStamp}`
@@ -56,23 +56,32 @@ const poll = () => {
       } else if (response.statusCode === 200) {
         const json = JSON.parse(body)
         lastTimeStamp = json['@attributes'].timestamp
-        const matches = json.match || []
+        let matches = json.match || []
+
+        if (matches.length === 0) {
+          console.log('No matches today')
+        } else if (typeof (matches) === 'object') {
+          // If we only have 1 match it returns the object and not an array with one object in it
+          matches = [matches]
+        }
 
         matches.map((match) => {
           const descriptionParam = `${match.hteam} vs ${match.ateam} - ${match.group}`
           const {bookmaker} = match
           const {offer} = bookmaker
+          const attributes = match['@attributes']
 
           session.run(
             ' MATCH (matches:Matches)\n' +
             ' MERGE (match:Match {id: {idParam}, description: {descriptionParam}})\n' +
-            ' MERGE (bookmaker:Bookmaker {id: {bookmakerId}, description: {bookmakerDescription}})\n' +
+            ' MERGE (bookmaker:Bookmaker {id: {fakeBookmakerId}, bookmakerId: {bookmakerId}, description: {bookmakerDescription}})\n' +
             ' MERGE (offer:Offer {id: {offerId}, description: {offerDescription}})\n' +
             ' MERGE (match)-[:BELONGS_TO]->(matches)\n' +
             ' MERGE (bookmaker)-[:BELONGS_TO]->(match)\n' +
             ' MERGE (offer)-[:BELONGS_TO]->(bookmaker)\n' +
             ' RETURN match\n', {
-              idParam: match['@attributes'].id,
+              idParam: attributes.id,
+              fakeBookmakerId: bookmaker['@attributes'].bid + '.' + attributes.id,
               descriptionParam,
               bookmakerId: bookmaker['@attributes'].bid,
               bookmakerDescription: bookmaker['@attributes'].name,
@@ -85,6 +94,10 @@ const poll = () => {
             const {odds} = offer
             const offerId = offer['@attributes'].id
             let queryString = 'MATCH (offer:Offer {id: {offerId}})\n'
+
+            if (odds.length > 0) {
+              console.log('Creating odds...')
+            }
 
             odds.map((o) => {
               const attributes = o['@attributes']
@@ -144,7 +157,7 @@ const poll = () => {
         })
       } else if (response.statusCode === 503) {
         // We have done too much
-        console.log('Slow down')
+        console.log('Maximum request limit exceeded. Please try later.')
       } else {
         console.log('error: ' + response.statusCode)
         console.log(body)
